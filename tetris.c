@@ -1,6 +1,15 @@
 #include <stdio.h>
 #include "SDL.h"
 
+enum {
+	SIZE = 20,
+	WIDTH = 10,
+	HEIGHT = 20,
+	MARGIN = 2
+};
+
+int GRID[HEIGHT][WIDTH];
+
 int L_blocks[4*4*4]=
 		{
 			0,0,0,0,
@@ -45,7 +54,10 @@ struct TETRIS_BLOCK{
 
 
 int drawBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block); 
-// void updateBlock(struct TETRIS_BLOCK block, int x_offset, int y_offset);
+int initialiseField(SDL_Renderer *renderer); 
+int drawField(SDL_Renderer *renderer);
+int removeBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block);
+void updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block, int x_offset, int y_offset);
 void printBlock(struct TETRIS_BLOCK block);
 
 int main(int argc, char* argv[]) {
@@ -75,8 +87,12 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}	
 
-	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	SDL_RenderClear(renderer);
+	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+
+	initialiseField(renderer);
+	SDL_Delay(3000);
+
 	struct TETRIS_BLOCK L;
 	L.x=0;
 	L.y=0;
@@ -99,6 +115,8 @@ int main(int argc, char* argv[]) {
 			if(test_event.type == SDL_KEYUP) {
 				switch(test_event.key.keysym.sym) {
 					case SDLK_DOWN:
+						updateBlock(renderer, L,0,1);
+						printf("down\n");
 						break;
 					case SDLK_UP:
 						break;
@@ -121,6 +139,34 @@ int main(int argc, char* argv[]) {
 
 	SDL_DestroyWindow(window);
 	SDL_Quit();
+	return 0;
+}
+
+int initialiseField(SDL_Renderer *renderer) {
+	SDL_SetRenderDrawColor(renderer,128,128,128,255); 
+	for(int h=0; h<HEIGHT;h++) {
+		for(int w=0;w<WIDTH;w++) {
+			GRID[h][w] = 0; 
+		}
+	}
+	drawField(renderer);
+	return 0;
+}
+
+int drawField(SDL_Renderer *renderer) {
+	for(int h=0;h<HEIGHT;h++) {
+		for(int w=0;w<WIDTH;w++) {
+			if(!GRID[h][w]) {
+				SDL_Rect rect; 
+				rect.x = w*(SIZE+MARGIN); 
+				rect.y = h*(SIZE+MARGIN); 
+				rect.w = SIZE; 
+				rect.h = SIZE;			
+				SDL_RenderFillRect(renderer,&rect);
+				SDL_RenderPresent(renderer);
+			}
+		}
+	}
 	return 0;
 }
 
@@ -154,8 +200,9 @@ int drawBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
 	for(int i=0;i<4;i++) {
 		for(int j=0;j<4;j++) {
 			if(*(current_block + i*4 + j)) {
-				int newX = i*size +x;
-				int newY = j*size + y;
+				GRID[j][i] = 1;
+				int newX = j*(SIZE+MARGIN) + x;
+				int newY = i*(SIZE+MARGIN) + y;
 				SDL_Rect rect;
 				rect.x=newX;
 				rect.y=newY;
@@ -171,16 +218,42 @@ int drawBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
 	SDL_RenderPresent(renderer);
 	return 0;
 }
-/*
-void updateBlock(struct TETRIS_BLOCK block, int x_offset, int y_offset) {
-	block.x = block.x + x_offset;
-	block.y = y_offset;
-	for(i=0;i<4;i++) {
-		block.rects[i].x += x_offset;
-		block.rects[i].y += y_offset;
+
+int removeBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
+	int x = block.x;
+	int y = block.y;
+	int current_block_pointer = block.block_pointer;
+	int *current_block = (block.block+current_block_pointer*4*4);
+	SDL_SetRenderDrawColor(renderer,128,128,128,255);
+	for(int i=0;i<4;i++) {
+		for(int j=0;j<4;j++) {
+			if(*(current_block + i*4 + j)) {
+				GRID[i][j] = 0;
+				int newX = i*(SIZE+MARGIN) + x;
+				int newY = j*(SIZE+MARGIN) + y;
+				SDL_Rect rect;
+				rect.x=newX;
+				rect.y=newY;
+				rect.w=SIZE;
+				rect.h=SIZE;
+				if(SDL_RenderFillRect(renderer, &rect)) {
+					printf("Problem drawing rectangle: %s\n", SDL_GetError());
+					return 1;
+				}	
+			}
+		}
 	}
+	return 0;
 }
-*/
+
+
+// TODO change in coordinates of block not passed to the L-block
+void updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block, int x_offset, int y_offset) {
+	block.x = block.x + x_offset;
+	block.y = block.y + y_offset;
+	drawBlock(renderer, block);
+}
+
 
 void printBlock(struct TETRIS_BLOCK block) {
 	int position = block.block_pointer;

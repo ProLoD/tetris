@@ -1,2 +1,2 @@
-hellomake: test.c 
-	gcc -g -Wall -o test test.c -I/usr/include/SDL2 -lSDL2
+hellomake: tetris.c 
+	gcc -g -Wall -o tetris tetris.c -I/usr/include/SDL2 -lSDL2
