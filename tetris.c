@@ -57,7 +57,7 @@ int drawBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block);
 int initialiseField(SDL_Renderer *renderer); 
 int drawField(SDL_Renderer *renderer);
 int removeBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block);
-void updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block, int x_offset, int y_offset);
+void updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK *block, int x_offset, int y_offset);
 void printBlock(struct TETRIS_BLOCK block);
 
 int main(int argc, char* argv[]) {
@@ -91,7 +91,6 @@ int main(int argc, char* argv[]) {
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
 	initialiseField(renderer);
-	SDL_Delay(3000);
 
 	struct TETRIS_BLOCK L;
 	L.x=0;
@@ -115,14 +114,22 @@ int main(int argc, char* argv[]) {
 			if(test_event.type == SDL_KEYUP) {
 				switch(test_event.key.keysym.sym) {
 					case SDLK_DOWN:
-						updateBlock(renderer, L,0,1);
+						updateBlock(renderer, &L,0,1);
 						printf("down\n");
 						break;
 					case SDLK_UP:
+						removeBlock(renderer,L);
+						L.block_pointer = (L.block_pointer + 1) % 4;
+						updateBlock(renderer,&L,0,0);
+						printf("turn\n");
 						break;
 					case SDLK_LEFT:
+						updateBlock(renderer, &L,-1,0);
+						printf("left\n");
 						break;
 					case SDLK_RIGHT:
+						updateBlock(renderer,&L,1,0);
+						printf("right\n");
 						break;
 					case SDLK_ESCAPE:
 						quit = 1;
@@ -201,8 +208,8 @@ int drawBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
 		for(int j=0;j<4;j++) {
 			if(*(current_block + i*4 + j)) {
 				GRID[j][i] = 1;
-				int newX = j*(SIZE+MARGIN) + x;
-				int newY = i*(SIZE+MARGIN) + y;
+				int newX = (x+j)*(SIZE+MARGIN);
+				int newY = (y+i)*(SIZE+MARGIN);
 				SDL_Rect rect;
 				rect.x=newX;
 				rect.y=newY;
@@ -229,8 +236,8 @@ int removeBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
 		for(int j=0;j<4;j++) {
 			if(*(current_block + i*4 + j)) {
 				GRID[i][j] = 0;
-				int newX = i*(SIZE+MARGIN) + x;
-				int newY = j*(SIZE+MARGIN) + y;
+				int newX = (x+j)*(SIZE+MARGIN);
+				int newY = (y+i)*(SIZE+MARGIN);
 				SDL_Rect rect;
 				rect.x=newX;
 				rect.y=newY;
@@ -247,11 +254,11 @@ int removeBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
 }
 
 
-// TODO change in coordinates of block not passed to the L-block
-void updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block, int x_offset, int y_offset) {
-	block.x = block.x + x_offset;
-	block.y = block.y + y_offset;
-	drawBlock(renderer, block);
+void updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK *block, int x_offset, int y_offset) {
+	removeBlock(renderer, *block);
+	block->x = block->x + x_offset;
+	block->y = block->y + y_offset;
+	drawBlock(renderer, *block);
 }
 
 
