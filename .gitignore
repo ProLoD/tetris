@@ -38,6 +38,7 @@ reated by https://www.gitignore.io/api/c
 *.i*86
 *.x86_64
 *.hex
+tetris
 
 # Debug files
 *.dSYM/
