@@ -1,6 +1,15 @@
 #include <stdio.h>
 #include "SDL.h"
 
+
+
+SDL_Color BLUE = {0,0,255,255};
+SDL_Color RED = {255,0,0,255};
+SDL_Color YELLOW = {255,255,0,255};
+SDL_Color GREEN = {0,255,0,255};
+SDL_Color ORANGE = {255,165,0,255};
+
+
 enum {
 	SIZE = 20,
 	WIDTH = 10,
@@ -34,20 +43,11 @@ int L_blocks[4*4*4]=
 			
 		};
 
-typedef enum {
-	BLUE,
-	RED,
-	YELLOW,
-	GREEN,
-	ORANGE
-} COLOR;
-
-
 struct TETRIS_BLOCK{ 
 	int x;
 	int y;
 	int size;
-	COLOR color;
+	SDL_Color color;
 	int *block;
 	int block_pointer;
 };
@@ -57,7 +57,7 @@ int drawBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block);
 int initialiseField(SDL_Renderer *renderer); 
 int drawField(SDL_Renderer *renderer);
 int removeBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block);
-void updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK *block, int x_offset, int y_offset);
+void updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK *block, int x_offset, int y_offset, int rotation_offset);
 void printBlock(struct TETRIS_BLOCK block);
 
 int main(int argc, char* argv[]) {
@@ -96,7 +96,7 @@ int main(int argc, char* argv[]) {
 	L.x=0;
 	L.y=0;
 	L.size=20;
-	L.color = BLUE;
+	L.color = RED;
 	L.block=L_blocks;
 	L.block_pointer=0;
 
@@ -114,21 +114,21 @@ int main(int argc, char* argv[]) {
 			if(test_event.type == SDL_KEYUP) {
 				switch(test_event.key.keysym.sym) {
 					case SDLK_DOWN:
-						updateBlock(renderer, &L,0,1);
+						updateBlock(renderer, &L,0,1,0);
 						printf("down\n");
 						break;
 					case SDLK_UP:
-						removeBlock(renderer,L);
-						L.block_pointer = (L.block_pointer + 1) % 4;
-						updateBlock(renderer,&L,0,0);
+						// removeBlock(renderer,L);
+						// L.block_pointer = (L.block_pointer + 1) % 4;
+						updateBlock(renderer,&L,0,0,1);
 						printf("turn\n");
 						break;
 					case SDLK_LEFT:
-						updateBlock(renderer, &L,-1,0);
+						updateBlock(renderer, &L,-1,0,0);
 						printf("left\n");
 						break;
 					case SDLK_RIGHT:
-						updateBlock(renderer,&L,1,0);
+						updateBlock(renderer,&L,1,0,0);
 						printf("right\n");
 						break;
 					case SDLK_ESCAPE:
@@ -181,29 +181,11 @@ int drawBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
 	int x = block.x;
 	int y = block.y;
 	int size = block.size;
+	SDL_Color color = block.color;
 	int block_pointer = block.block_pointer;
 	int *current_block = (block.block + block_pointer*4*4);
 
-	switch(block.color) {
-		case BLUE:
-			SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-			break;
-		case RED:
-			SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-			break;
-		case YELLOW:
-			SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
-			break;
-		case GREEN:
-			SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-			break;
-		case ORANGE:
-			SDL_SetRenderDrawColor(renderer, 255, 165, 0, 255);
-			break;
-		default:
-			printf("no correct color found, shouldn't come till this point\n");
-			return 1;
-	}
+	SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
 	for(int i=0;i<4;i++) {
 		for(int j=0;j<4;j++) {
 			if(*(current_block + i*4 + j)) {
@@ -254,8 +236,9 @@ int removeBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
 }
 
 
-void updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK *block, int x_offset, int y_offset) {
+void updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK *block, int x_offset, int y_offset, int rotation_offset) {
 	removeBlock(renderer, *block);
+	block->block_pointer = (block->block_pointer + rotation_offset) % 4;
 	block->x = block->x + x_offset;
 	block->y = block->y + y_offset;
 	drawBlock(renderer, *block);
