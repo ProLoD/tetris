@@ -5,7 +5,7 @@ Simple implementation of Tetris with C and SDL
 * ~~update COLOR enum with SDL colors~~
 * ~~change updateBlock-function to also consider rotations~~
 * ~~check valid position of block~~
-* blocks fall down automatically
+* ~~blocks fall down automatically~~
 * add new blocks
 * add gameplay
 

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <time.h>
 #include "SDL.h"
 
 
@@ -15,6 +16,13 @@ enum {
 	WIDTH = 10,
 	HEIGHT = 20,
 	MARGIN = 2
+};
+
+enum fallingState {
+	FALL,
+	STOP,
+	NEW,
+	IGNORE
 };
 
 int GRID[HEIGHT][WIDTH];
@@ -53,7 +61,7 @@ struct TETRIS_BLOCK{
 };
 
 
-int checkPosition(struct TETRIS_BLOCK block, int x_offset, int y_offset, int rotation);
+enum fallingState checkPosition(struct TETRIS_BLOCK block, int x_offset, int y_offset, int rotation);
 int drawBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block); 
 int initialiseField(SDL_Renderer *renderer); 
 int drawField(SDL_Renderer *renderer);
@@ -62,6 +70,10 @@ void updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK *block, int x_offse
 void printBlock(struct TETRIS_BLOCK block);
 
 int main(int argc, char* argv[]) {
+	int interval = 1; // seconds
+	time_t start;
+	time_t end;
+
 	SDL_Window *window;
 	SDL_Renderer *renderer;
 
@@ -110,8 +122,19 @@ int main(int argc, char* argv[]) {
 
 	SDL_Event test_event;
 	int quit = 0;
+	start = time(NULL);
 	while(!quit) {
+		end = time(NULL);
+		if(difftime(end, start) > interval) {
+			updateBlock(renderer, &L,0,1,0);
+			start = time(NULL);
+		}
 		while(SDL_PollEvent(&test_event)) {
+			end = time(NULL);
+			if(difftime(end, start) > interval) {
+				updateBlock(renderer, &L,0,1,0);
+				start = time(NULL);
+			}
 			if(test_event.type == SDL_KEYUP) {
 				switch(test_event.key.keysym.sym) {
 					case SDLK_DOWN:
@@ -178,7 +201,7 @@ int drawField(SDL_Renderer *renderer) {
 	return 1;
 }
 
-int checkPosition(struct TETRIS_BLOCK block, int x_offset, int y_offset, int rotation) {
+enum fallingState checkPosition(struct TETRIS_BLOCK block, int x_offset, int y_offset, int rotation) {
 	int x = block.x;
 	int y = block.y;
 	int block_pointer = block.block_pointer;
@@ -190,15 +213,15 @@ int checkPosition(struct TETRIS_BLOCK block, int x_offset, int y_offset, int rot
 			if(*(next_block + h*4 + w)) {
 				// check if block horizontally exceeds grid
 				if(x + w + x_offset < 0 || x + w + x_offset >= WIDTH) {
-					return 0;
-				} else if(y + h + y_offset < 0 || y + h + y_offset >= HEIGHT) { // check vertically
-					return 0;
+					return IGNORE;
+				} else if(y + h + y_offset >= HEIGHT) { // check vertically
+					return NEW;
 				}	
 			}
 		}
 	}
 	
-	return 1;
+	return FALL;
 }
 
 int drawBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
@@ -261,7 +284,8 @@ int removeBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
 
 
 void updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK *block, int x_offset, int y_offset, int rotation_offset) {
-	if(checkPosition(*block, x_offset, y_offset, rotation_offset)) {
+	int position_status = checkPosition(*block, x_offset, y_offset, rotation_offset); 
+	if(position_status == FALL) {
 		removeBlock(renderer, *block);
 		block->block_pointer = (block->block_pointer + rotation_offset) % 4;
 		block->x = block->x + x_offset;
