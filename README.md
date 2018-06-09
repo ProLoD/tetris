@@ -8,4 +8,6 @@ Simple implementation of Tetris with C and SDL
 * ~~blocks fall down automatically~~
 * add new blocks
 * add gameplay
+* break up into different files and headers
+* refactoring
 
