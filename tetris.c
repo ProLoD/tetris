@@ -60,19 +60,24 @@ struct TETRIS_BLOCK{
 	int block_pointer;
 };
 
-
+void newBlock(struct TETRIS_BLOCK *block); 
 enum fallingState checkPosition(struct TETRIS_BLOCK block, int x_offset, int y_offset, int rotation);
 int drawBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block); 
 int initialiseField(SDL_Renderer *renderer); 
 int drawField(SDL_Renderer *renderer);
 int removeBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block);
-void updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK *block, int x_offset, int y_offset, int rotation_offset);
+enum fallingState updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK *block, int x_offset, int y_offset, int rotation_offset);
 void printBlock(struct TETRIS_BLOCK block);
+void printField();
 
 int main(int argc, char* argv[]) {
 	int interval = 1; // seconds
 	time_t start;
 	time_t end;
+	int x_offset = 0;
+	int y_offset = 0;
+	int rotation_offset = 0;
+	enum fallingState state = FALL;
 
 	SDL_Window *window;
 	SDL_Renderer *renderer;
@@ -105,13 +110,7 @@ int main(int argc, char* argv[]) {
 
 	initialiseField(renderer);
 
-	struct TETRIS_BLOCK L;
-	L.x=0;
-	L.y=0;
-	L.size=20;
-	L.color = RED;
-	L.block=L_blocks;
-	L.block_pointer=0;
+	struct TETRIS_BLOCK L = {0,0,20,RED,L_blocks,0};
 
 	if(!drawBlock(renderer,L)) {
 		printf("something went wrong drawing the block: %s\n ", SDL_GetError());
@@ -126,44 +125,46 @@ int main(int argc, char* argv[]) {
 	while(!quit) {
 		end = time(NULL);
 		if(difftime(end, start) > interval) {
-			updateBlock(renderer, &L,0,1,0);
+			state = updateBlock(renderer, &L,0,1,0);
 			start = time(NULL);
+			printField();
 		}
-		while(SDL_PollEvent(&test_event)) {
-			end = time(NULL);
-			if(difftime(end, start) > interval) {
-				updateBlock(renderer, &L,0,1,0);
-				start = time(NULL);
-			}
+		else if(SDL_PollEvent(&test_event)) {
 			if(test_event.type == SDL_KEYUP) {
 				switch(test_event.key.keysym.sym) {
 					case SDLK_DOWN:
-						updateBlock(renderer, &L,0,1,0);
+						y_offset = 1;
 						printf("down\n");
 						break;
 					case SDLK_UP:
-						// removeBlock(renderer,L);
-						// L.block_pointer = (L.block_pointer + 1) % 4;
-						updateBlock(renderer,&L,0,0,1);
+						rotation_offset = 1;
 						printf("turn\n");
 						break;
 					case SDLK_LEFT:
-						updateBlock(renderer, &L,-1,0,0);
+						x_offset = -1;
 						printf("left\n");
 						break;
 					case SDLK_RIGHT:
-						updateBlock(renderer,&L,1,0,0);
+						x_offset = 1;
 						printf("right\n");
 						break;
 					case SDLK_ESCAPE:
 						quit = 1;
-
-
+						break;
 				}
+
+				state = updateBlock(renderer,&L,x_offset,y_offset,rotation_offset);
+				x_offset = 0;
+				y_offset = 0;
+				rotation_offset = 0;
+
 			} else if (test_event.type == SDL_QUIT) {
 				quit = 1;
 			}
 		}	
+		if(state == NEW) {
+			newBlock(&L);
+		}
 	}
 
 	SDL_DestroyRenderer(renderer);
@@ -188,11 +189,7 @@ int drawField(SDL_Renderer *renderer) {
 	for(int h=0;h<HEIGHT;h++) {
 		for(int w=0;w<WIDTH;w++) {
 			if(!GRID[h][w]) {
-				SDL_Rect rect; 
-				rect.x = w*(SIZE+MARGIN); 
-				rect.y = h*(SIZE+MARGIN); 
-				rect.w = SIZE; 
-				rect.h = SIZE;			
+				SDL_Rect rect = {w*(SIZE+MARGIN),h*(SIZE+MARGIN),SIZE,SIZE}; 
 				SDL_RenderFillRect(renderer,&rect);
 				SDL_RenderPresent(renderer);
 			}
@@ -208,13 +205,21 @@ enum fallingState checkPosition(struct TETRIS_BLOCK block, int x_offset, int y_o
 	int next_rotation = (block_pointer+rotation)%4;
 	int *next_block = (block.block + next_rotation*4*4);
 
+	int newX;
+	int newY;
+
 	for(int h=0;h<4;h++) {
 		for(int w=0;w<4;w++) {
 			if(*(next_block + h*4 + w)) {
+				newX = x+w+x_offset;
+				newY = y+h+y_offset;
 				// check if block horizontally exceeds grid
-				if(x + w + x_offset < 0 || x + w + x_offset >= WIDTH) {
+				if(newX < 0 || newX >= WIDTH) {
 					return IGNORE;
-				} else if(y + h + y_offset >= HEIGHT) { // check vertically
+				} else if(newY >= HEIGHT) { // check vertically
+					return NEW;
+				} else if(GRID[newY][x]) {
+					printf("next\n");
 					return NEW;
 				}	
 			}
@@ -227,7 +232,6 @@ enum fallingState checkPosition(struct TETRIS_BLOCK block, int x_offset, int y_o
 int drawBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
 	int x = block.x;
 	int y = block.y;
-	int size = block.size;
 	SDL_Color color = block.color;
 	int block_pointer = block.block_pointer;
 	int *current_block = (block.block + block_pointer*4*4);
@@ -236,14 +240,10 @@ int drawBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
 	for(int i=0;i<4;i++) {
 		for(int j=0;j<4;j++) {
 			if(*(current_block + i*4 + j)) {
-				GRID[j][i] = 1;
+				GRID[y+i][x+j] = 1;
 				int newX = (x+j)*(SIZE+MARGIN);
 				int newY = (y+i)*(SIZE+MARGIN);
-				SDL_Rect rect;
-				rect.x=newX;
-				rect.y=newY;
-				rect.w=size;
-				rect.h=size;
+				SDL_Rect rect = {newX,newY,SIZE,SIZE};
 				if(SDL_RenderFillRect(renderer, &rect)) {
 					printf("Problem drawing rectangle: %s\n", SDL_GetError());
 					return 0;
@@ -264,14 +264,10 @@ int removeBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
 	for(int i=0;i<4;i++) {
 		for(int j=0;j<4;j++) {
 			if(*(current_block + i*4 + j)) {
-				GRID[i][j] = 0;
+				GRID[y+i][x+j] = 0;
 				int newX = (x+j)*(SIZE+MARGIN);
 				int newY = (y+i)*(SIZE+MARGIN);
-				SDL_Rect rect;
-				rect.x=newX;
-				rect.y=newY;
-				rect.w=SIZE;
-				rect.h=SIZE;
+				SDL_Rect rect = {newX,newY,SIZE,SIZE};
 				if(SDL_RenderFillRect(renderer, &rect)) {
 					printf("Problem drawing rectangle: %s\n", SDL_GetError());
 					return 0;
@@ -282,18 +278,22 @@ int removeBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
 	return 1;
 }
 
+void newBlock(struct TETRIS_BLOCK *block) {
+	block->x = 0;
+	block->y = 0;
+	block->block_pointer = 0;
+}
 
-void updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK *block, int x_offset, int y_offset, int rotation_offset) {
-	int position_status = checkPosition(*block, x_offset, y_offset, rotation_offset); 
+enum fallingState updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK *block, int x_offset, int y_offset, int rotation_offset) {
+	removeBlock(renderer, *block);
+	enum fallingState position_status = checkPosition(*block, x_offset, y_offset, rotation_offset); 
 	if(position_status == FALL) {
-		removeBlock(renderer, *block);
 		block->block_pointer = (block->block_pointer + rotation_offset) % 4;
 		block->x = block->x + x_offset;
 		block->y = block->y + y_offset;
-		drawBlock(renderer, *block);
-	} else {
-		printf("invalid move\n");
 	}
+	drawBlock(renderer, *block);
+	return position_status;
 }
 
 
@@ -304,6 +304,16 @@ void printBlock(struct TETRIS_BLOCK block) {
 	for(int i=0;i<4;i++) {
 		for(int j=0;j<4;j++) {
 			printf("%i ",*(blocks + position*4*4 + i*4 + j));
+		}
+		printf("\n");
+	}
+	printf("\n----------------\n");
+}
+
+void printField() {
+	for(int h=0;h<HEIGHT;h++) {
+		for(int w=0;w<WIDTH;w++) {
+			printf("%i ", GRID[h][w]);
 		}
 		printf("\n");
 	}
