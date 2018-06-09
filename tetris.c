@@ -53,6 +53,7 @@ struct TETRIS_BLOCK{
 };
 
 
+int checkPosition(struct TETRIS_BLOCK block, int x_offset, int y_offset, int rotation);
 int drawBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block); 
 int initialiseField(SDL_Renderer *renderer); 
 int drawField(SDL_Renderer *renderer);
@@ -77,14 +78,14 @@ int main(int argc, char* argv[]) {
 
 	if (window == NULL) {
 		printf("Could not create window: %s\n", SDL_GetError());
-		return 1;
+		return 0;
 	}
 
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
 	if (renderer == NULL) {
 		printf("Could not create renderer: %s\n", SDL_GetError());
-		return 1;
+		return 0;
 	}	
 
 	SDL_RenderClear(renderer);
@@ -100,7 +101,7 @@ int main(int argc, char* argv[]) {
 	L.block=L_blocks;
 	L.block_pointer=0;
 
-	if(drawBlock(renderer,L)) {
+	if(!drawBlock(renderer,L)) {
 		printf("something went wrong drawing the block: %s\n ", SDL_GetError());
 		return 1;
 	}
@@ -146,7 +147,7 @@ int main(int argc, char* argv[]) {
 
 	SDL_DestroyWindow(window);
 	SDL_Quit();
-	return 0;
+	return 1;
 }
 
 int initialiseField(SDL_Renderer *renderer) {
@@ -157,7 +158,7 @@ int initialiseField(SDL_Renderer *renderer) {
 		}
 	}
 	drawField(renderer);
-	return 0;
+	return 1;
 }
 
 int drawField(SDL_Renderer *renderer) {
@@ -174,7 +175,30 @@ int drawField(SDL_Renderer *renderer) {
 			}
 		}
 	}
-	return 0;
+	return 1;
+}
+
+int checkPosition(struct TETRIS_BLOCK block, int x_offset, int y_offset, int rotation) {
+	int x = block.x;
+	int y = block.y;
+	int block_pointer = block.block_pointer;
+	int next_rotation = (block_pointer+rotation)%4;
+	int *next_block = (block.block + next_rotation*4*4);
+
+	for(int h=0;h<4;h++) {
+		for(int w=0;w<4;w++) {
+			if(*(next_block + h*4 + w)) {
+				// check if block horizontally exceeds grid
+				if(x + w + x_offset < 0 || x + w + x_offset >= WIDTH) {
+					return 0;
+				} else if(y + h + y_offset < 0 || y + h + y_offset >= HEIGHT) { // check vertically
+					return 0;
+				}	
+			}
+		}
+	}
+	
+	return 1;
 }
 
 int drawBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
@@ -199,13 +223,13 @@ int drawBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
 				rect.h=size;
 				if(SDL_RenderFillRect(renderer, &rect)) {
 					printf("Problem drawing rectangle: %s\n", SDL_GetError());
-					return 1;
+					return 0;
 				}	
 			}
 		}
 	}
 	SDL_RenderPresent(renderer);
-	return 0;
+	return 1;
 }
 
 int removeBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
@@ -227,21 +251,25 @@ int removeBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
 				rect.h=SIZE;
 				if(SDL_RenderFillRect(renderer, &rect)) {
 					printf("Problem drawing rectangle: %s\n", SDL_GetError());
-					return 1;
+					return 0;
 				}	
 			}
 		}
 	}
-	return 0;
+	return 1;
 }
 
 
 void updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK *block, int x_offset, int y_offset, int rotation_offset) {
-	removeBlock(renderer, *block);
-	block->block_pointer = (block->block_pointer + rotation_offset) % 4;
-	block->x = block->x + x_offset;
-	block->y = block->y + y_offset;
-	drawBlock(renderer, *block);
+	if(checkPosition(*block, x_offset, y_offset, rotation_offset)) {
+		removeBlock(renderer, *block);
+		block->block_pointer = (block->block_pointer + rotation_offset) % 4;
+		block->x = block->x + x_offset;
+		block->y = block->y + y_offset;
+		drawBlock(renderer, *block);
+	} else {
+		printf("invalid move\n");
+	}
 }
 
 
