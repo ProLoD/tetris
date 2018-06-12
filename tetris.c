@@ -9,7 +9,7 @@ SDL_Color RED = {255,0,0,255};
 SDL_Color YELLOW = {255,255,0,255};
 SDL_Color GREEN = {0,255,0,255};
 SDL_Color ORANGE = {255,165,0,255};
-SDL_Color GREY = {128,128,128,255};
+SDL_Color GRAY = {128,128,128,255};
 
 
 enum {
@@ -26,7 +26,7 @@ enum fallingState {
 	IGNORE
 };
 
-int GRID[HEIGHT][WIDTH];
+SDL_Color GRID[HEIGHT][WIDTH];
 
 int L_blocks[4*4*4]=
 		{
@@ -68,11 +68,14 @@ int initialiseField(SDL_Renderer *renderer);
 int drawField(SDL_Renderer *renderer);
 int removeBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block);
 enum fallingState updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK *block, int x_offset, int y_offset, int rotation_offset);
+int updateScore(SDL_Renderer *renderer);
 void printBlock(struct TETRIS_BLOCK block);
 void printField();
+int equalColors(SDL_Color c1, SDL_Color c2);
+
 
 int main(int argc, char* argv[]) {
-	int interval = 0.5; // seconds
+	int interval = 0.05; // seconds
 	time_t start;
 	time_t end;
 	int x_offset = 0;
@@ -122,32 +125,28 @@ int main(int argc, char* argv[]) {
 
 	SDL_Event test_event;
 	int quit = 0;
+	int score = 0;
 	start = time(NULL);
 	while(!quit) {
 		end = time(NULL);
 		if(difftime(end, start) > interval) {
 			y_offset = 1;
 			start = time(NULL);
-			printf("fall\n");
 		}
 		else if(SDL_PollEvent(&test_event)) {
 			if(test_event.type == SDL_KEYUP) {
-				switch(test_event.key.keysym.sym) {
+				switch(test_event.key.keysym.sym){
 					case SDLK_DOWN:
 						y_offset = 1;
-						printf("down\n");
 						break;
 					case SDLK_UP:
 						rotation_offset = 1;
-						printf("turn\n");
 						break;
 					case SDLK_LEFT:
 						x_offset = -1;
-						printf("left\n");
 						break;
 					case SDLK_RIGHT:
 						x_offset = 1;
-						printf("right\n");
 						break;
 					case SDLK_ESCAPE:
 						quit = 1;
@@ -172,6 +171,8 @@ int main(int argc, char* argv[]) {
 
 		if(state == NEW) {
 			newBlock(&L);
+			score += updateScore(renderer);
+			printf("score: %i\n", score);
 		} 
 	}
 
@@ -183,10 +184,10 @@ int main(int argc, char* argv[]) {
 }
 
 int initialiseField(SDL_Renderer *renderer) {
-	SDL_SetRenderDrawColor(renderer,GREY.r,GREY.g,GREY.b,GREY.a); 
+	SDL_SetRenderDrawColor(renderer,GRAY.r,GRAY.g,GRAY.b,GRAY.a); 
 	for(int h=0; h<HEIGHT;h++) {
 		for(int w=0;w<WIDTH;w++) {
-			GRID[h][w] = 0; 
+			GRID[h][w] = GRAY; 
 		}
 	}
 	drawField(renderer);
@@ -196,7 +197,7 @@ int initialiseField(SDL_Renderer *renderer) {
 int drawField(SDL_Renderer *renderer) {
 	for(int h=0;h<HEIGHT;h++) {
 		for(int w=0;w<WIDTH;w++) {
-			if(!GRID[h][w]) {
+			if(equalColors(GRID[h][w],GRAY)) {
 				SDL_Rect rect = {w*(SIZE+MARGIN),h*(SIZE+MARGIN),SIZE,SIZE}; 
 				SDL_RenderFillRect(renderer,&rect);
 				SDL_RenderPresent(renderer);
@@ -226,12 +227,9 @@ enum fallingState checkPosition(struct TETRIS_BLOCK block, int x_offset, int y_o
 					return IGNORE;
 				} else if(newY >= HEIGHT) { // check vertically
 					return NEW;
-				} else if(GRID[newY][x+w]) {
-					printf("new y: %i\n", newY);
-					printf("new\n");
+				} else if(!equalColors(GRID[newY][x+w],GRAY)) {
 					return NEW;
-				} else if(GRID[newY][newX]) {
-					printf("ignore\n");
+				} else if(!equalColors(GRID[newY][newX],GRAY)) {
 					return IGNORE;
 				}	
 			}
@@ -252,7 +250,7 @@ int drawBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
 	for(int i=0;i<4;i++) {
 		for(int j=0;j<4;j++) {
 			if(*(current_block + i*4 + j)) {
-				GRID[y+i][x+j] = 1;
+				GRID[y+i][x+j] = color;
 				int newX = (x+j)*(SIZE+MARGIN);
 				int newY = (y+i)*(SIZE+MARGIN);
 				SDL_Rect rect = {newX,newY,SIZE,SIZE};
@@ -276,7 +274,7 @@ int removeBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
 	for(int i=0;i<4;i++) {
 		for(int j=0;j<4;j++) {
 			if(*(current_block + i*4 + j)) {
-				GRID[y+i][x+j] = 0;
+				GRID[y+i][x+j] = GRAY;
 				int newX = (x+j)*(SIZE+MARGIN);
 				int newY = (y+i)*(SIZE+MARGIN);
 				SDL_Rect rect = {newX,newY,SIZE,SIZE};
@@ -308,22 +306,36 @@ enum fallingState updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK *block
 	return position_status;
 }
 
-int updateScore() {
+int updateScore(SDL_Renderer *renderer) {
 	int full_line;
-	for(int h=HEIGHT;h>0;--h) {
+	int nb_lines = 0;
+	for(int h=HEIGHT-1;h>0;h--) {
 		full_line = 1;
 		for(int w=0;w<WIDTH;w++) {
-			if(!GRID[h][w]) {
+			if(equalColors(GRID[h][w],GRAY)) {
 				full_line = 0;
+				break;
 			}	
 		}
 		if(full_line) {
-			for(int y=h;y>0;h--) {
-				// copy line above
+			nb_lines++;
+			for(int y=h;y>0;y--) {
+				for(int x=0;x<WIDTH;x++) {
+					// copy line above
+					SDL_Color color = GRID[y-1][x];
+					GRID[y][x] = color;
+					SDL_SetRenderDrawColor(renderer,color.r,color.g,color.b,color.a);
+					int newX = x*(SIZE+MARGIN);
+					int newY = y*(SIZE+MARGIN);
+					SDL_Rect rect = {newX,newY,SIZE,SIZE};
+					SDL_RenderFillRect(renderer, &rect);
+				}
+				
 			}
+			h++;
 		}
 	}
-	return 1;
+	return nb_lines*10;
 }
 
 
@@ -343,10 +355,23 @@ void printBlock(struct TETRIS_BLOCK block) {
 void printField() {
 	for(int h=0;h<HEIGHT;h++) {
 		for(int w=0;w<WIDTH;w++) {
-			printf("%i ", GRID[h][w]);
+			printf("%i ", !equalColors(GRID[h][w],GRAY));
 		}
 		printf("\n");
 	}
 	printf("\n----------------\n");
 }
 
+int equalColors(SDL_Color c1, SDL_Color c2) {
+	if(c1.r != c2.r) {
+		return 0;
+	} else if(c1.g != c2.g) {
+		return 0;
+	} else if(c1.b != c2.b) {
+		return 0;
+	} else if(c1.a != c2.a) {
+		return 0;
+	}
+
+	return 1;
+}
