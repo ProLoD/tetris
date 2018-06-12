@@ -2,13 +2,16 @@
 #include <time.h>
 #include "SDL.h"
 
+#include "tetromino.h"
 
 
-SDL_Color BLUE = {0,0,255,255};
+SDL_Color LIGHTBLUE = {173,216,230,255};
+SDL_Color DARKBLUE = {0,0,255,255};
 SDL_Color RED = {255,0,0,255};
 SDL_Color YELLOW = {255,255,0,255};
 SDL_Color GREEN = {0,255,0,255};
 SDL_Color ORANGE = {255,165,0,255};
+SDL_Color PURPLE = {128,0,128,255};
 SDL_Color GRAY = {128,128,128,255};
 
 
@@ -27,7 +30,7 @@ enum fallingState {
 };
 
 SDL_Color GRID[HEIGHT][WIDTH];
-
+/*
 int L_blocks[4*4*4]=
 		{
 			0,0,0,0,
@@ -51,7 +54,7 @@ int L_blocks[4*4*4]=
 			0,1,0,0
 			
 		};
-
+*/
 struct TETRIS_BLOCK{ 
 	int x;
 	int y;
@@ -61,7 +64,7 @@ struct TETRIS_BLOCK{
 	int block_pointer;
 };
 
-void newBlock(struct TETRIS_BLOCK *block); 
+struct TETRIS_BLOCK newBlock();
 enum fallingState checkPosition(struct TETRIS_BLOCK block, int x_offset, int y_offset, int rotation);
 int drawBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block); 
 int initialiseField(SDL_Renderer *renderer); 
@@ -75,6 +78,8 @@ int equalColors(SDL_Color c1, SDL_Color c2);
 
 
 int main(int argc, char* argv[]) {
+	srand(time(NULL));
+
 	int interval = 0.05; // seconds
 	time_t start;
 	time_t end;
@@ -114,14 +119,12 @@ int main(int argc, char* argv[]) {
 
 	initialiseField(renderer);
 
-	struct TETRIS_BLOCK L = {0,0,20,RED,L_blocks,0};
+	struct TETRIS_BLOCK BLOCK = newBlock();
 
-	if(!drawBlock(renderer,L)) {
+	if(!drawBlock(renderer,BLOCK)) {
 		printf("something went wrong drawing the block: %s\n ", SDL_GetError());
 		return 1;
 	}
-	printBlock(L);
-
 
 	SDL_Event test_event;
 	int quit = 0;
@@ -152,25 +155,22 @@ int main(int argc, char* argv[]) {
 						quit = 1;
 						break;
 					case SDLK_p:
-						printf("x: %i\n", L.x);
-						printf("y: %i\n", L.y);
+						printf("x: %i\n", BLOCK.x);
+						printf("y: %i\n", BLOCK.y);
 						printField();
 						break;		
-					case SDLK_h:
-						// break point
-						break;
 				}
 			} else if (test_event.type == SDL_QUIT) {
 				quit = 1;
 			}
 		}	
-		state = updateBlock(renderer,&L,x_offset,y_offset,rotation_offset);
+		state = updateBlock(renderer,&BLOCK,x_offset,y_offset,rotation_offset);
 		x_offset = 0;
 		y_offset = 0;
 		rotation_offset = 0;
 
 		if(state == NEW) {
-			newBlock(&L);
+			BLOCK = newBlock();
 			score += updateScore(renderer);
 			printf("score: %i\n", score);
 		} 
@@ -288,10 +288,46 @@ int removeBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK block) {
 	return 1;
 }
 
-void newBlock(struct TETRIS_BLOCK *block) {
-	block->x = 0;
-	block->y = 0;
-	block->block_pointer = 0;
+
+struct TETRIS_BLOCK newBlock() {
+	struct TETRIS_BLOCK new_block;
+	new_block.x = 0;
+	new_block.y = 0;
+	new_block.size = SIZE;
+	new_block.block_pointer = 0;
+	int r = rand() % 7;
+	
+	switch(r) {
+		case 0:
+			new_block.color = LIGHTBLUE;
+			new_block.block = I_blocks;
+			break;
+		case 1:
+			new_block.color = DARKBLUE;
+			new_block.block = J_blocks;
+			break;
+		case 2:
+			new_block.color = ORANGE;
+			new_block.block = L_blocks;
+			break;
+		case 3:
+			new_block.color = YELLOW;
+			new_block.block = O_blocks;
+			break;
+		case 4:
+			new_block.color = GREEN;
+			new_block.block = S_blocks;
+			break;
+		case 5:
+			new_block.color = PURPLE;
+			new_block.block = T_blocks;
+			break;
+		case 6:
+			new_block.color = RED;
+			new_block.block = Z_blocks;
+			break;
+	}
+	return new_block;
 }
 
 enum fallingState updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK *block, int x_offset, int y_offset, int rotation_offset) {

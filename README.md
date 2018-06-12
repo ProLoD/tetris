@@ -6,9 +6,13 @@ Simple implementation of Tetris with C and SDL
 * ~~change updateBlock-function to also consider rotations~~
 * ~~check valid position of block~~
 * ~~blocks fall down automatically~~
-* fix bug in collision detection
-* add new blocks
-* add gameplay
+* ~~fix bug in collision detection~~
+* ~~add new blocks~~
+* ~~add gameplay~~
 * break up into different files and headers
 * refactoring
+* game over
+* interface
+* preview of next tetromino
+* improve performance
 
