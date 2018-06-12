@@ -9,6 +9,7 @@ SDL_Color RED = {255,0,0,255};
 SDL_Color YELLOW = {255,255,0,255};
 SDL_Color GREEN = {0,255,0,255};
 SDL_Color ORANGE = {255,165,0,255};
+SDL_Color GREY = {128,128,128,255};
 
 
 enum {
@@ -71,7 +72,7 @@ void printBlock(struct TETRIS_BLOCK block);
 void printField();
 
 int main(int argc, char* argv[]) {
-	int interval = 1; // seconds
+	int interval = 0.5; // seconds
 	time_t start;
 	time_t end;
 	int x_offset = 0;
@@ -125,9 +126,9 @@ int main(int argc, char* argv[]) {
 	while(!quit) {
 		end = time(NULL);
 		if(difftime(end, start) > interval) {
-			state = updateBlock(renderer, &L,0,1,0);
+			y_offset = 1;
 			start = time(NULL);
-			printField();
+			printf("fall\n");
 		}
 		else if(SDL_PollEvent(&test_event)) {
 			if(test_event.type == SDL_KEYUP) {
@@ -151,20 +152,27 @@ int main(int argc, char* argv[]) {
 					case SDLK_ESCAPE:
 						quit = 1;
 						break;
+					case SDLK_p:
+						printf("x: %i\n", L.x);
+						printf("y: %i\n", L.y);
+						printField();
+						break;		
+					case SDLK_h:
+						// break point
+						break;
 				}
-
-				state = updateBlock(renderer,&L,x_offset,y_offset,rotation_offset);
-				x_offset = 0;
-				y_offset = 0;
-				rotation_offset = 0;
-
 			} else if (test_event.type == SDL_QUIT) {
 				quit = 1;
 			}
 		}	
+		state = updateBlock(renderer,&L,x_offset,y_offset,rotation_offset);
+		x_offset = 0;
+		y_offset = 0;
+		rotation_offset = 0;
+
 		if(state == NEW) {
 			newBlock(&L);
-		}
+		} 
 	}
 
 	SDL_DestroyRenderer(renderer);
@@ -175,7 +183,7 @@ int main(int argc, char* argv[]) {
 }
 
 int initialiseField(SDL_Renderer *renderer) {
-	SDL_SetRenderDrawColor(renderer,128,128,128,255); 
+	SDL_SetRenderDrawColor(renderer,GREY.r,GREY.g,GREY.b,GREY.a); 
 	for(int h=0; h<HEIGHT;h++) {
 		for(int w=0;w<WIDTH;w++) {
 			GRID[h][w] = 0; 
@@ -218,9 +226,13 @@ enum fallingState checkPosition(struct TETRIS_BLOCK block, int x_offset, int y_o
 					return IGNORE;
 				} else if(newY >= HEIGHT) { // check vertically
 					return NEW;
-				} else if(GRID[newY][x]) {
-					printf("next\n");
+				} else if(GRID[newY][x+w]) {
+					printf("new y: %i\n", newY);
+					printf("new\n");
 					return NEW;
+				} else if(GRID[newY][newX]) {
+					printf("ignore\n");
+					return IGNORE;
 				}	
 			}
 		}
@@ -294,6 +306,24 @@ enum fallingState updateBlock(SDL_Renderer *renderer, struct TETRIS_BLOCK *block
 	}
 	drawBlock(renderer, *block);
 	return position_status;
+}
+
+int updateScore() {
+	int full_line;
+	for(int h=HEIGHT;h>0;--h) {
+		full_line = 1;
+		for(int w=0;w<WIDTH;w++) {
+			if(!GRID[h][w]) {
+				full_line = 0;
+			}	
+		}
+		if(full_line) {
+			for(int y=h;y>0;h--) {
+				// copy line above
+			}
+		}
+	}
+	return 1;
 }
 
 
